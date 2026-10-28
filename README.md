@@ -8,6 +8,18 @@ Go to **Actions → Build Windows app → Run workflow**. Once the build succeed
 
 For best YouTube compatibility, install [Deno](https://deno.com/) and make sure `deno` is on PATH. The GitHub-produced executable is not code-signed, so Windows SmartScreen may warn when launching it.
 
+## Linux (x86_64)
+
+Go to **Actions → Build Linux app → Run workflow** on the `main` branch. After the run succeeds, download the `Berry-IT-Video-Downloader-Linux-x86_64` artifact, unzip the Actions artifact, and extract the included `.tar.gz`:
+
+```bash
+tar -xzf Berry-IT-Video-Downloader-Linux-x86_64.tar.gz
+chmod +x Berry-IT-Video-Downloader
+./Berry-IT-Video-Downloader
+```
+
+This build targets **64-bit Intel/AMD Linux (x86_64)**. It does not run on ARM Raspberry Pi systems. It requires a graphical desktop and compatible system libraries. Install Deno separately for improved YouTube compatibility. The packaged application has not yet been tested on a user's Linux desktop.
+
 ## Run from source
 
 Install Python 3.11+ (3.12 recommended):
