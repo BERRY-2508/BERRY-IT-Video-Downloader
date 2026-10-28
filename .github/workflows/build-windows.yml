@@ -20,7 +20,7 @@ jobs:
           pip install -r requirements-build.txt
       - name: Build Windows EXE
         run: |
-          pyinstaller --noconfirm --clean --onefile --windowed --name "Berry-IT-Video-Downloader" --collect-all yt_dlp --collect-all imageio_ffmpeg app.py
+          pyinstaller --noconfirm --clean --onefile --windowed --name "Berry-IT-Video-Downloader" --collect-all yt_dlp --collect-all imageio_ffmpeg --collect-all PIL app.py
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
