@@ -1,6 +1,16 @@
 # BERRY IT Video Downloader
 
-Windows-first local desktop application for saving video/audio you own or have permission to download, powered by [yt-dlp](https://github.com/yt-dlp/yt-dlp) and FFmpeg.
+Local desktop application for Windows and Linux for saving video/audio you own or have permission to download, powered by [yt-dlp](https://github.com/yt-dlp/yt-dlp) and FFmpeg.
+
+## Video and playlist downloads
+
+Paste a YouTube video URL or a playlist URL, then choose **Download mode**:
+- **Single video:** download just the video in the link, even when it has a playlist context.
+- **Entire playlist:** download all entries from a YouTube URL containing a `list=` identifier.
+
+Both modes support MP4 and MP3. Playlist files are placed inside a folder named after the playlist, numbered in playlist order. An archive file in the selected download directory tracks successful downloads so future attempts can skip those entries. MP4 and MP3 each have their own archive. Note that the progress display is an approximation based on the current playlist item; unavailable entries and skipped downloads can make it jump.
+
+The application is intended for material you own or are permitted to download. Large playlists can require substantial disk space and time.
 
 ## Download Windows build
 
