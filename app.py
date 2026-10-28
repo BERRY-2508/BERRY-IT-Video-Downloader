@@ -1,5 +1,7 @@
 """BERRY IT Video Downloader — local desktop application."""
 import queue
+import base64
+import io
 import threading
 import tkinter as tk
 from pathlib import Path
@@ -7,12 +9,18 @@ from tkinter import filedialog, messagebox, ttk
 from urllib.parse import urlparse, parse_qs
 
 import yt_dlp
+from PIL import Image, ImageTk
+from brand_logo import LOGO_WEBP_BASE64
 
-BG = "#171717"
-PANEL = "#222222"
+BG = "#0b0b0e"
+PANEL = "#202025"
+SURFACE = "#141417"
 TEXT = "#F4F4F4"
-MUTED = "#AAAAAA"
-RED = "#FF3C3C"
+MUTED = "#acaab2"
+RED = "#ff3c3c"
+LINE = "#393039"
+HEADING_FONT = "Orbitron"
+BODY_FONT = "Inter"
 
 
 def valid_youtube_url(value):
@@ -39,8 +47,8 @@ class DownloadWindow(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("BERRY IT | Video Downloader")
-        self.geometry("740x630")
-        self.minsize(630, 600)
+        self.geometry("850x760")
+        self.minsize(675, 690)
         self.configure(bg=BG)
         self.events = queue.Queue()
         self.running = False
@@ -55,87 +63,113 @@ class DownloadWindow(tk.Tk):
         self.build_ui()
         self.after(100, self.drain_events)
 
-    def label(self, parent, text, fg=MUTED, size=11, bold=False, **kwargs):
+    def label(self, parent, text, fg=MUTED, size=11, bold=False, family=BODY_FONT, **kwargs):
         return tk.Label(parent, text=text, bg=parent.cget("bg"), fg=fg,
-                        font=("Segoe UI", size, "bold" if bold else "normal"), **kwargs)
+                        font=(family, size, "bold" if bold else "normal"), **kwargs)
+
+    def section_label(self, parent, text):
+        self.label(parent, text.upper(), fg="#dedbe0", size=9,
+                   bold=True, family=HEADING_FONT).pack(anchor="w", pady=(0, 7))
 
     def build_ui(self):
-        shell = tk.Frame(self, bg=BG, padx=38, pady=28)
-        shell.pack(fill="both", expand=True)
-
-        self.label(shell, "BERRY IT", fg=RED, size=24, bold=True).pack(anchor="w")
-        self.label(shell, "VIDEO DOWNLOADER", fg=TEXT, size=12, bold=True).pack(
-            anchor="w", pady=(0, 24))
-        self.label(shell, "VIDEO OR PLAYLIST URL", size=10, bold=True).pack(anchor="w")
-        tk.Entry(shell, textvariable=self.url, bg=PANEL, fg=TEXT,
-                 insertbackground=TEXT, highlightbackground="#484848",
-                 highlightcolor=RED, highlightthickness=1, relief="flat",
-                 font=("Segoe UI", 11)).pack(fill="x", ipady=11, pady=(7, 17))
-
-        self.label(shell, "DOWNLOAD MODE", size=10, bold=True).pack(anchor="w")
-        modes = tk.Frame(shell, bg=BG)
-        modes.pack(fill="x", pady=(6, 12))
-        for mode in ("Single video", "Entire playlist"):
-            tk.Radiobutton(
-                modes, text=mode, variable=self.scope, value=mode,
-                bg=BG, fg=TEXT, activebackground=BG, activeforeground=RED,
-                selectcolor=PANEL, font=("Segoe UI", 10)
-            ).pack(side="left", padx=(0, 24))
-
-        options = tk.Frame(shell, bg=BG)
-        options.pack(fill="x")
-        left = tk.Frame(options, bg=BG)
-        right = tk.Frame(options, bg=BG)
-        left.pack(side="left", fill="x", expand=True, padx=(0, 10))
-        right.pack(side="left", fill="x", expand=True)
-        self.label(left, "FORMAT", size=10, bold=True).pack(anchor="w")
-        self.label(right, "VIDEO QUALITY", size=10, bold=True).pack(anchor="w")
-
         style = ttk.Style(self)
         style.theme_use("clam")
         style.configure("Berry.TCombobox", foreground=TEXT, fieldbackground=PANEL,
-                        background=PANEL, arrowcolor=TEXT, bordercolor="#484848", padding=7)
+                        background=PANEL, arrowcolor=TEXT, bordercolor="#48464e",
+                        padding=10)
         style.map("Berry.TCombobox", fieldbackground=[("readonly", PANEL)],
                   foreground=[("readonly", TEXT)])
+        style.configure("Berry.Horizontal.TProgressbar", troughcolor="#35333a",
+                        background=RED, bordercolor=BG, lightcolor=RED,
+                        darkcolor=RED, thickness=7)
+
+        outer = tk.Frame(self, bg=BG, padx=20, pady=18)
+        outer.pack(fill="both", expand=True)
+        shell = tk.Frame(outer, bg=SURFACE, padx=27, pady=20,
+                         highlightbackground=LINE, highlightthickness=1)
+        shell.pack(fill="both", expand=True)
+
+        # Embed the original website logo; do not depend on a network request.
+        raw_logo = base64.b64decode(LOGO_WEBP_BASE64)
+        image = Image.open(io.BytesIO(raw_logo)).convert("RGBA")
+        image.thumbnail((640, 158), Image.Resampling.LANCZOS)
+        self.brand_image = ImageTk.PhotoImage(image)
+        tk.Label(shell, image=self.brand_image, bg=SURFACE).pack(pady=(0, 4))
+        self.label(shell, "VIDEO DOWNLOADER", fg=RED, size=18, bold=True,
+                   family=HEADING_FONT).pack(pady=(0, 4))
+        self.label(shell, "Download your media directly to your computer.",
+                   size=10).pack(pady=(0, 17))
+
+        form = tk.Frame(shell, bg=SURFACE)
+        form.pack(fill="x")
+        self.section_label(form, "Video or playlist URL")
+        tk.Entry(form, textvariable=self.url, bg=PANEL, fg=TEXT,
+                 insertbackground=TEXT, highlightbackground="#48464e",
+                 highlightcolor=RED, highlightthickness=1, relief="flat",
+                 font=(BODY_FONT, 11)).pack(fill="x", ipady=11, pady=(0, 17))
+
+        self.section_label(form, "Download mode")
+        modes = tk.Frame(form, bg=SURFACE)
+        modes.pack(fill="x", pady=(0, 18))
+        for mode in ("Single video", "Entire playlist"):
+            tk.Radiobutton(
+                modes, text=mode.title(), variable=self.scope, value=mode,
+                bg=SURFACE, fg=TEXT, activebackground=SURFACE,
+                activeforeground=RED, selectcolor=PANEL,
+                font=(BODY_FONT, 11), indicatoron=True
+            ).pack(side="left", padx=(0, 24))
+
+        options = tk.Frame(form, bg=SURFACE)
+        options.pack(fill="x")
+        left = tk.Frame(options, bg=SURFACE)
+        right = tk.Frame(options, bg=SURFACE)
+        left.pack(side="left", fill="x", expand=True, padx=(0, 12))
+        right.pack(side="left", fill="x", expand=True)
+        self.section_label(left, "Format")
+        self.section_label(right, "Quality")
         self.format_combo = ttk.Combobox(
             left, state="readonly", textvariable=self.kind,
             values=["MP4 video", "MP3 audio"], style="Berry.TCombobox")
-        self.format_combo.pack(fill="x", pady=(7, 17))
+        self.format_combo.pack(fill="x", pady=(0, 18))
         self.format_combo.bind("<<ComboboxSelected>>", self.sync_quality)
         self.quality_combo = ttk.Combobox(
             right, state="readonly", textvariable=self.quality,
             values=["Best available", "1080p", "720p", "480p"],
             style="Berry.TCombobox")
-        self.quality_combo.pack(fill="x", pady=(7, 17))
+        self.quality_combo.pack(fill="x", pady=(0, 18))
 
-        self.label(shell, "SAVE TO", size=10, bold=True).pack(anchor="w")
-        folder_line = tk.Frame(shell, bg=BG)
-        folder_line.pack(fill="x", pady=(7, 20))
+        self.section_label(form, "Save location")
+        folder_line = tk.Frame(form, bg=SURFACE)
+        folder_line.pack(fill="x", pady=(0, 18))
         tk.Entry(folder_line, textvariable=self.output, bg=PANEL, fg=TEXT,
-                 insertbackground=TEXT, relief="flat", highlightbackground="#484848",
-                 highlightthickness=1, font=("Segoe UI", 10)).pack(
+                 insertbackground=TEXT, relief="flat", highlightbackground="#48464e",
+                 highlightthickness=1, font=(BODY_FONT, 10)).pack(
                      side="left", fill="x", expand=True, ipady=10)
-        tk.Button(folder_line, text="Browse", command=self.browse, bg="#3A3A3A",
-                  fg=TEXT, activebackground="#4A4A4A", activeforeground=TEXT,
-                  relief="flat", font=("Segoe UI", 10), cursor="hand2",
-                  padx=14, pady=9).pack(side="left", padx=(8, 0))
-
+        tk.Button(folder_line, text="Browse", command=self.browse, bg="#303037",
+                  fg=TEXT, activebackground="#44434b", activeforeground=TEXT,
+                  relief="flat", font=(BODY_FONT, 10), cursor="hand2",
+                  padx=15, pady=10).pack(side="left", padx=(8, 0))
         self.download_button = tk.Button(
-            shell, text="DOWNLOAD", command=self.start_download, bg="#D00000",
-            fg="white", activebackground=RED, activeforeground="white",
-            relief="flat", cursor="hand2", font=("Segoe UI", 12, "bold"), pady=12)
+            form, text="↓   DOWNLOAD VIDEO", command=self.start_download,
+            bg="#d00023", fg="white", activebackground=RED,
+            activeforeground="white", relief="flat", cursor="hand2",
+            font=(HEADING_FONT, 12, "bold"), pady=15)
         self.download_button.pack(fill="x")
-        style.configure("Berry.Horizontal.TProgressbar", troughcolor="#353535",
-                        background=RED, bordercolor=BG, lightcolor=RED, darkcolor=RED)
-        ttk.Progressbar(shell, maximum=100, variable=self.percent,
-                        style="Berry.Horizontal.TProgressbar").pack(
-                            fill="x", pady=(22, 10))
-        self.label(shell, "", fg=TEXT, size=11,
-                   textvariable=self.status).pack(anchor="w")
-        self.label(shell, "", size=9, textvariable=self.details,
-                   wraplength=620, justify="left").pack(anchor="w", pady=(5, 12))
-        self.label(shell, "Save only media you own or are authorized to download.",
-                   size=9).pack(side="bottom", anchor="w")
+
+        status_line = tk.Frame(form, bg=SURFACE)
+        status_line.pack(fill="x", pady=(15, 4))
+        self.label(status_line, "", fg=TEXT, size=10,
+                   textvariable=self.status).pack(side="left")
+        self.progress_label = tk.StringVar(value="0%")
+        self.label(status_line, "", fg=MUTED, size=10,
+                   textvariable=self.progress_label).pack(side="right")
+        ttk.Progressbar(form, maximum=100, variable=self.percent,
+                        style="Berry.Horizontal.TProgressbar").pack(fill="x", pady=(0, 9))
+        self.label(form, "", fg=MUTED, size=9, textvariable=self.details,
+                   wraplength=690, justify="left").pack(anchor="w")
+        tk.Frame(shell, bg=LINE, height=1).pack(fill="x", pady=(18, 10))
+        self.label(shell, "BERRY IT  |  THE RIPE CHOICE FOR YOUR IT SOLUTIONS",
+                   size=8, fg="#93909b").pack(anchor="w")
 
     def sync_quality(self, _event=None):
         self.quality_combo.configure(
@@ -170,6 +204,7 @@ class DownloadWindow(tk.Tk):
             return
         self.running = True
         self.percent.set(0)
+        self.progress_label.set("0%")
         self.status.set("Connecting…")
         self.details.set("Preparing download…")
         self.download_button.configure(state="disabled", text="DOWNLOADING…")
@@ -282,13 +317,14 @@ class DownloadWindow(tk.Tk):
                 action, data = self.events.get_nowait()
                 if action == "progress":
                     self.percent.set(data)
-
+                    self.progress_label.set(f"{data:.0f}%")
                 elif action == "status":
                     self.status.set(data)
                 elif action == "details":
                     self.details.set(data)
                 elif action == "done":
                     self.percent.set(100)
+                    self.progress_label.set("100%")
                     self.status.set("Download complete")
                     self.details.set("Saved in " + data)
                     self.reset()
