@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - app.py
+      - brand_logo.py
       - requirements.txt
       - requirements-build.txt
       - .github/workflows/build-linux.yml
@@ -35,7 +36,7 @@ jobs:
           python -m py_compile app.py
       - name: Build Linux executable
         run: |
-          pyinstaller --noconfirm --clean --onefile --windowed --name Berry-IT-Video-Downloader --collect-all yt_dlp --collect-all imageio_ffmpeg app.py
+          pyinstaller --noconfirm --clean --onefile --windowed --name Berry-IT-Video-Downloader --collect-all yt_dlp --collect-all imageio_ffmpeg --collect-all PIL app.py
           chmod +x dist/Berry-IT-Video-Downloader
           file dist/Berry-IT-Video-Downloader
       - name: Package executable
