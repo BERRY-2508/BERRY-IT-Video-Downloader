@@ -1,0 +1,51 @@
+name: Build Linux app
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - app.py
+      - requirements.txt
+      - requirements-build.txt
+      - .github/workflows/build-linux.yml
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  linux-x64:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install GUI build libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-tk libgl1 libglib2.0-0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: x64
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-build.txt
+          python -c "import tkinter; import yt_dlp; import imageio_ffmpeg"
+          python -m py_compile app.py
+      - name: Build Linux executable
+        run: |
+          pyinstaller --noconfirm --clean --onefile --windowed --name Berry-IT-Video-Downloader --collect-all yt_dlp --collect-all imageio_ffmpeg app.py
+          chmod +x dist/Berry-IT-Video-Downloader
+          file dist/Berry-IT-Video-Downloader
+      - name: Package executable
+        run: |
+          mkdir -p package
+          cp dist/Berry-IT-Video-Downloader package/
+          cp README.md package/
+          tar -czf Berry-IT-Video-Downloader-Linux-x86_64.tar.gz -C package .
+      - name: Upload Linux build
+        uses: actions/upload-artifact@v4
+        with:
+          name: Berry-IT-Video-Downloader-Linux-x86_64
+          path: Berry-IT-Video-Downloader-Linux-x86_64.tar.gz
