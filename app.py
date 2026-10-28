@@ -4,7 +4,7 @@ import threading
 import tkinter as tk
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
 
 import yt_dlp
 
@@ -39,8 +39,8 @@ class DownloadWindow(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("BERRY IT | Video Downloader")
-        self.geometry("740x550")
-        self.minsize(630, 520)
+        self.geometry("740x630")
+        self.minsize(630, 600)
         self.configure(bg=BG)
         self.events = queue.Queue()
         self.running = False
@@ -48,6 +48,7 @@ class DownloadWindow(tk.Tk):
         self.output = tk.StringVar(value=str(Path.home() / "Downloads"))
         self.kind = tk.StringVar(value="MP4 video")
         self.quality = tk.StringVar(value="1080p")
+        self.scope = tk.StringVar(value="Single video")
         self.status = tk.StringVar(value="Ready to download")
         self.details = tk.StringVar(value="Downloads are saved on this computer.")
         self.percent = tk.DoubleVar(value=0)
@@ -65,11 +66,21 @@ class DownloadWindow(tk.Tk):
         self.label(shell, "BERRY IT", fg=RED, size=24, bold=True).pack(anchor="w")
         self.label(shell, "VIDEO DOWNLOADER", fg=TEXT, size=12, bold=True).pack(
             anchor="w", pady=(0, 24))
-        self.label(shell, "VIDEO URL", size=10, bold=True).pack(anchor="w")
+        self.label(shell, "VIDEO OR PLAYLIST URL", size=10, bold=True).pack(anchor="w")
         tk.Entry(shell, textvariable=self.url, bg=PANEL, fg=TEXT,
                  insertbackground=TEXT, highlightbackground="#484848",
                  highlightcolor=RED, highlightthickness=1, relief="flat",
                  font=("Segoe UI", 11)).pack(fill="x", ipady=11, pady=(7, 17))
+
+        self.label(shell, "DOWNLOAD MODE", size=10, bold=True).pack(anchor="w")
+        modes = tk.Frame(shell, bg=BG)
+        modes.pack(fill="x", pady=(6, 12))
+        for mode in ("Single video", "Entire playlist"):
+            tk.Radiobutton(
+                modes, text=mode, variable=self.scope, value=mode,
+                bg=BG, fg=TEXT, activebackground=BG, activeforeground=RED,
+                selectcolor=PANEL, font=("Segoe UI", 10)
+            ).pack(side="left", padx=(0, 24))
 
         options = tk.Frame(shell, bg=BG)
         options.pack(fill="x")
@@ -138,6 +149,17 @@ class DownloadWindow(tk.Tk):
     def start_download(self):
         url = self.url.get().strip()
         folder = Path(self.output.get()).expanduser()
+        playlist_mode = self.scope.get() == "Entire playlist"
+        parsed = urlparse(url)
+        has_list = bool(parse_qs(parsed.query).get("list"))
+        if playlist_mode and not has_list:
+            messagebox.showerror("Playlist URL required",
+                                 "This mode requires a YouTube URL containing list=.")
+            return
+        if not playlist_mode and parsed.path.rstrip("/") == "/playlist":
+            messagebox.showerror("Video URL required",
+                                 "Select Entire playlist for playlist-only URLs.")
+            return
         if not valid_youtube_url(url):
             messagebox.showerror("Invalid link", "Enter a valid YouTube video URL.")
             return
@@ -152,20 +174,41 @@ class DownloadWindow(tk.Tk):
         self.details.set("Preparing download…")
         self.download_button.configure(state="disabled", text="DOWNLOADING…")
         threading.Thread(target=self.download_worker,
-                         args=(url, folder, self.kind.get(), self.quality.get()),
+                         args=(url, folder, self.kind.get(), self.quality.get(), playlist_mode),
                          daemon=True).start()
 
-    def download_worker(self, url, folder, kind, quality):
+    def download_worker(self, url, folder, kind, quality, playlist_mode):
+        current_item = {"index": 1, "total": 1}
+
+        def item_counts(info):
+            try:
+                index = max(1, int(info.get("playlist_index") or current_item["index"]))
+            except (TypeError, ValueError):
+                index = current_item["index"]
+            try:
+                total = max(index, int(info.get("n_entries") or info.get("playlist_count")
+                                       or current_item["total"]))
+            except (TypeError, ValueError):
+                total = max(index, current_item["total"])
+            current_item.update(index=index, total=total)
+            return index, total
+
         def progress(data):
+            index, count = item_counts(data.get("info_dict") or {})
+            prefix = f"Video {index} of {count}" if playlist_mode else "Video"
             if data.get("status") == "finished":
-                self.events.put(("status", "Processing downloaded media…"))
+                self.events.put(("status", prefix + " — processing…"))
                 return
             if data.get("status") != "downloading":
                 return
             total = data.get("total_bytes") or data.get("total_bytes_estimate")
             current = data.get("downloaded_bytes", 0)
             if total:
-                self.events.put(("progress", min(current / total * 100, 100)))
+                fraction = min(current / total, 1)
+                progress_total = ((index - 1 + fraction) / count * 100
+                                  if playlist_mode else fraction * 100)
+                self.events.put(("progress", min(progress_total, 99.9)))
+            self.events.put(("status", prefix + " — downloading…"))
             speed = data.get("speed")
             eta = data.get("eta")
             note = f"{speed / 1048576:.1f} MB/s" if speed else "Downloading"
@@ -187,8 +230,14 @@ class DownloadWindow(tk.Tk):
             self.events.put(("details", msg[:240]))
 
         opts = {
-            "outtmpl": str(folder / "%(title).180B [%(id)s].%(ext)s"),
-            "noplaylist": True,
+            "outtmpl": (
+                str(folder / "%(playlist_title|Playlist)s" /
+                    "%(playlist_index)03d - %(title).180B [%(id)s].%(ext)s")
+                if playlist_mode else
+                str(folder / "%(title).180B [%(id)s].%(ext)s")
+            ),
+            "noplaylist": not playlist_mode,
+            "download_archive": str(folder / ".berry-it-download-archive.txt"),
             "windowsfilenames": True,
             "quiet": True,
             "logger": Logger(),
@@ -233,7 +282,7 @@ class DownloadWindow(tk.Tk):
                 action, data = self.events.get_nowait()
                 if action == "progress":
                     self.percent.set(data)
-                    self.status.set(f"Downloading… {data:.0f}%")
+
                 elif action == "status":
                     self.status.set(data)
                 elif action == "details":
