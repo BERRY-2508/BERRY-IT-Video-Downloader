@@ -237,7 +237,7 @@ class DownloadWindow(tk.Tk):
                 str(folder / "%(title).180B [%(id)s].%(ext)s")
             ),
             "noplaylist": not playlist_mode,
-            "download_archive": str(folder / ".berry-it-download-archive.txt"),
+            "download_archive": str(folder / (".berry-it-mp3-archive.txt" if kind == "MP3 audio" else ".berry-it-mp4-archive.txt")),
             "windowsfilenames": True,
             "quiet": True,
             "logger": Logger(),
