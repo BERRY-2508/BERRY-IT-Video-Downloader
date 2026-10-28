@@ -1,5 +1,7 @@
 # BERRY IT Video Downloader
 
+The Windows and Linux desktop interface uses BERRY IT's charcoal/red styling and embeds the original full logo from the `BERRY.IT.WEB` GitHub repository for offline display. The app uses Orbitron and Inter when those fonts are installed, with system-font fallbacks otherwise.
+
 Local desktop application for Windows and Linux for saving video/audio you own or have permission to download, powered by [yt-dlp](https://github.com/yt-dlp/yt-dlp) and FFmpeg.
 
 ## Video and playlist downloads
