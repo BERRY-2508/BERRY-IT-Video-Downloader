@@ -47,8 +47,15 @@ class DownloadWindow(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("BERRY IT | Video Downloader")
-        self.geometry("850x760")
-        self.minsize(675, 690)
+        # Size the window to the actual usable desktop, allowing space for the
+        # Windows title bar/taskbar and higher display scaling.
+        self.update_idletasks()
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+        width = min(850, max(450, screen_width - 80))
+        height = min(760, max(400, screen_height - 120))
+        self.minsize(min(675, width), min(600, height))
+        self.geometry(f"{width}x{height}+{max(0, (screen_width-width)//2)}+{max(0, (screen_height-height)//2)}")
         self.configure(bg=BG)
         self.events = queue.Queue()
         self.running = False
