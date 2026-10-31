@@ -1,0 +1,80 @@
+name: Publish Windows and Linux downloads
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (for example v0.2.0)'
+        required: true
+        default: 'v0.2.0'
+        type: string
+permissions:
+  contents: write
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            platform: Windows-x64
+          - os: ubuntu-22.04
+            platform: Linux-x86_64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Linux tkinter and system libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-tk libgl1 libglib2.0-0
+      - name: Install Python build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-build.txt
+          python -m py_compile app.py brand_logo.py
+      - name: Build executable
+        run: |
+          pyinstaller --noconfirm --clean --onefile --windowed --name Berry-IT-Video-Downloader --collect-all yt_dlp --collect-all imageio_ffmpeg --collect-all PIL app.py
+      - name: Package Linux executable
+        if: runner.os == 'Linux'
+        run: |
+          chmod +x dist/Berry-IT-Video-Downloader
+          tar -czf BERRY-IT-Video-Downloader-Linux-x86_64.tar.gz -C dist Berry-IT-Video-Downloader
+      - name: Rename Windows executable
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Copy-Item dist/Berry-IT-Video-Downloader.exe BERRY-IT-Video-Downloader-Windows-x64.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.platform }}
+          path: |
+            BERRY-IT-Video-Downloader-Windows-x64.exe
+            BERRY-IT-Video-Downloader-Linux-x86_64.tar.gz
+          if-no-files-found: error
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: release-assets
+          merge-multiple: true
+      - name: Create or update GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          case "$RELEASE_VERSION" in
+            v[0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "Version must look like v0.2.0"; exit 1 ;;
+          esac
+          ls -lh release-assets/
+          if gh release view "$RELEASE_VERSION" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_VERSION" release-assets/* --clobber
+          else
+            gh release create "$RELEASE_VERSION" release-assets/* --title "BERRY IT Video Downloader $RELEASE_VERSION" --notes "Desktop builds for Windows x64 and Linux x86_64. Download videos only where authorized."
+          fi
