@@ -14,6 +14,17 @@ Both modes support MP4 and MP3. Playlist files are placed inside a folder named 
 
 The application is intended for material you own or are permitted to download. Large playlists can require substantial disk space and time.
 
+## Public direct downloads
+
+The website's Windows and Linux buttons point to the **latest GitHub Release assets**, not GitHub Actions artifacts. They work without a GitHub login once a release has been published.
+
+To publish the first release, open **Actions → Publish Windows and Linux downloads → Run workflow** on `main`, keep version `v0.2.0`, and run it. The workflow builds both binaries and publishes them in one release. Future versions should use a newer version value such as `v0.2.1`.
+
+- Windows: `BERRY-IT-Video-Downloader-Windows-x64.exe`
+- Linux: `BERRY-IT-Video-Downloader-Linux-x86_64.tar.gz`
+
+These builds have not yet been verified end-to-end. The stable website download links return an error until that first release succeeds.
+
 ## Download Windows build
 
 Go to **Actions → Build Windows app → Run workflow**. Once the build succeeds, download the executable from the **Artifacts** section of the run. This is an early prototype and has not yet been tested end-to-end on Windows or against live YouTube downloads.
